@@ -172,9 +172,9 @@ class Espacenet(Support):
 
             if all_patents:
                 async for task in self.create_task_patent(all_patents, clicked_elements):
-                    # tasks_patent.append(task)
-                    await task
-                    break
+                    tasks_patent.append(task)
+                    # await task
+                    # break
 
                 # scroll down
                 await self.page.evaluate('window.scrollTo(0, document.body.scrollHeight)')

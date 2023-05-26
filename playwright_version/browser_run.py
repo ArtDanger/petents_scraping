@@ -26,7 +26,7 @@ async def main():
         # phone = p.devices["Pixel 4a (5G)"]
         phone = p.devices["Desktop Firefox"]
         browser = await p.firefox.launch(
-            headless=False,
+            headless=True,
         )
         context = await browser.new_context(
             **phone,
