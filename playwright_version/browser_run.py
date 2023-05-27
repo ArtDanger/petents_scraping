@@ -8,6 +8,7 @@ from contents import Espacenet
 
 @logger.catch
 async def main():
+    logger.info("start browser")
     async with async_playwright() as p:
 
         # phone = p.devices["Pixel 4a (5G)"]
@@ -26,7 +27,7 @@ async def main():
         # phone = p.devices["Pixel 4a (5G)"]
         phone = p.devices["Desktop Firefox"]
         browser = await p.firefox.launch(
-            headless=True,
+            headless=False,
         )
         context = await browser.new_context(
             **phone,
