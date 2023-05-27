@@ -5,7 +5,7 @@ from playwright._impl._api_types import TimeoutError
 
 class Support:
 
-    async def is_visible_selector(self, page: Page, locator: str, timeout=100):
+    async def is_visible_selector(self, page: Page, locator: str, timeout=500):
         try:
             await page.wait_for_selector(locator, timeout=timeout)
             return True
@@ -27,16 +27,17 @@ class Support:
         elif await self.is_visible_selector(page, '//div[contains(@class, "error__container")]'):
             return False
         else:
-            logger.warning('wait content loading... + 0.1s')
+            logger.info('wait content loading... + 0.5s')
             return await self.is_not_error(page, content_loc, joiner)
 
-    # __________________________________________________ work ________________________________________________________
-    async def click_wait_get_by_locator(self, page: Page, click_loc: str, content_loc: str, joiner='\n'):
+    # ________________________________________________ work ________________________________________________________
+    async def click_wait_get_by_locator(self, page: Page, click_loc: str, joiner='\n'):
+        content_loc = '//div[contains(@class, "text-block__content")]'
         if await self.is_visible_selector(page, click_loc, timeout=5 * 1000):
             await page.locator(click_loc).click()
         else:
             await page.reload(wait_until='networkidle')
-            return await self.click_wait_get_by_locator(page, click_loc, content_loc, joiner)
+            return await self.click_wait_get_by_locator(page, click_loc, joiner)
 
         if await self.is_not_error(page, content_loc, joiner):
             return await self.get_all_text_as_str_by_locator(page, content_loc, joiner)
@@ -45,6 +46,7 @@ class Support:
 
     async def get_table_content(self, patent_page: Page, locator_click: str, fields: list):
         lenght = len(fields)
+
         await patent_page.locator(locator_click).click()
         if await self.is_not_error(patent_page, '//td[contains(@class, "table__cell")]'):
             dict_content = {}

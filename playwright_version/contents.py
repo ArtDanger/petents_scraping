@@ -1,5 +1,7 @@
 import asyncio
 
+from concurrent.futures import ProcessPoolExecutor
+
 from IPython.lib.pretty import pprint
 from playwright._impl._api_types import TimeoutError
 
@@ -47,7 +49,7 @@ class Espacenet(Support):
         return bibliographic_data
 
     async def scrapy_claims(self, patent_page):
-        content_loc = '//div[contains(@class, "text-block__content")]'
+        # content_loc = '//div[contains(@class, "text-block__content")]'
         locators = {
             'original': '//li[@data-qa="claimsTab_resultDescription"]',
             'tree': '//li[@data-qa="claimsComponent_ClaimsTreeTab_resultDescription"]'
@@ -59,7 +61,6 @@ class Espacenet(Support):
         dict_claims['original'] = await self.click_wait_get_by_locator(
             patent_page,
             click_loc=locators['original'],
-            content_loc=content_loc,
             joiner=' '
         )
 
@@ -68,7 +69,6 @@ class Espacenet(Support):
             dict_claims['tree'] = await self.click_wait_get_by_locator(
                 patent_page,
                 click_loc=locators['tree'],
-                content_loc=content_loc,
                 joiner=' '
             )
 
@@ -131,7 +131,6 @@ class Espacenet(Support):
                     await self.click_wait_get_by_locator(
                         patent_page,
                         click_loc='//li[@data-qa="descriptionTab_resultDescription"]',
-                        content_loc='//div[contains(@class, "text-block__content")]'
                     ),
                 'Claims': await self.scrapy_claims(patent_page),
                 'Citations': await self.scrapy_citations(patent_page),
@@ -145,33 +144,40 @@ class Espacenet(Support):
 
     async def create_task_patent(self, all_patents, clicked_elements):
         for patent in all_patents:
+
             patent_text = await patent.inner_text()
 
             # If the patent hasn't been clicked yet
             if patent_text not in clicked_elements:
                 try:
                     # Try clicking the patent
-                    await patent.click(timeout=3000)
+                    await patent.click()
+                    logger.info("clicked")
                 except TimeoutError:
                     # If it isn't visible, scroll to it and then click it
+                    logger.info("not clicked")
                     logger.error(f"not visible {patent_text}")
                     bounding_box = await patent.bounding_box()
-                    await self.page.evaluate('window.scrollTo(0, arguments[0])', bounding_box['y'])
+                    await self.page.evaluate(f'window.scrollTo(0, {bounding_box["y"]})')
                     await patent.click()
-                # except Exception as e:
-                #     # Catch any other exceptions that might occur
-                #     logger.error(f"An unexpected error occurred with patent {patent_text}: {str(e)}")
-                #     continue
+                    logger.warning("clicked")
+                except Exception as e:
+                    # Catch any other exceptions that might occur
+                    logger.error(f"An unexpected error occurred with patent {patent_text}: {str(e)}")
+                    continue
 
-                # Add the patent to the clicked elements
-                clicked_elements.add(patent_text)
+            # Add the patent to the clicked elements
+            clicked_elements.add(patent_text)
 
-                # Get the URL of the patent
-                url_patent = await self.page.locator('//a[@data-qa="publicationNumber"]').get_attribute('href')
+            # url_patent = f'https://worldwide.espacenet.com/patent/search/family/038325063/publication/{patent_text}?q=pn%3DUS2008179419A1'
 
-                # Create a new task to scrape the patent and yield it
-                task = asyncio.create_task(self.scraping_patent(url_patent))
-                yield task
+            # # Get the URL of the patent
+            url_patent = await self.page.locator('//a[@data-qa="publicationNumber"]').get_attribute('href')
+
+            # Create a new task to scrape the patent and yield it
+            task = asyncio.create_task(self.scraping_patent(url_patent))
+            logger.info(f"yield task")
+            yield task, clicked_elements
 
     async def scroll_patents(self):
 
@@ -183,12 +189,13 @@ class Espacenet(Support):
             tasks_patent = []
 
             all_patents = await self.page.locator('//article[@data-qa="result_resultList"]').all()
+            # all_patents = await self.page.locator('//div[contains(@class, "h3")]').all()
 
             if all_patents:
-                async for task in self.create_task_patent(all_patents, clicked_elements):
+                async for task, clicked_elements in self.create_task_patent(all_patents, clicked_elements):
                     tasks_patent.append(task)
                     # await task
-                    if len(tasks_patent) >= 20:
+                    if len(tasks_patent) >= 4:
                         await asyncio.gather(*tasks_patent)
                         tasks_patent = []
                         logger.info(f"handled 20")

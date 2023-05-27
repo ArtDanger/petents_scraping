@@ -14,7 +14,7 @@ async def main():
         # phone = p.devices["Pixel 4a (5G)"]
         # browser = await p.chromium.launch(
         #     headless=False,
-        #     proxy={
+
         #         'server': 'http://host:22225',
         #         'username': 'user',
         #         'password': 'pswd'
